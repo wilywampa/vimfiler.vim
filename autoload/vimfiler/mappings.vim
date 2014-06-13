@@ -760,6 +760,8 @@ function! s:switch_to_another_vimfiler() "{{{
 endfunction"}}}
 function! s:print_filename() "{{{
   let filename = vimfiler#get_filename()
+
+  let @" = fnamemodify(filename, ':h') | let @+ = @" | let @* = @"
   if filename != '..' && empty(vimfiler#get_file())
     let filename = matchstr(getline('.'),
           \ ' Current directory: \zs.*\ze[/\\]')
