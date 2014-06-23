@@ -792,6 +792,9 @@ endfunction"}}}
 function! s:toggle_tree(is_recursive) "{{{
   let file = vimfiler#get_file()
   if empty(file) || vimfiler#get_filename() == '..'
+    if vimfiler#get_filename() == '..'
+      call vimfiler#mappings#cd('..')
+    endif
     return
   endif
 
@@ -820,6 +823,9 @@ endfunction"}}}
 function! s:expand_tree(is_recursive) "{{{
   let cursor_file = vimfiler#get_file()
   if empty(cursor_file) || vimfiler#get_filename() == '..'
+    if vimfiler#get_filename() == '..'
+      call vimfiler#mappings#cd('..')
+    endif
     return
   endif
 
