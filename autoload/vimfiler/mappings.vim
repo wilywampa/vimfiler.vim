@@ -1601,7 +1601,7 @@ function! vimfiler#mappings#_change_vim_current_dir() "{{{
   " Initialize load.
   call unite#kinds#cdable#define()
 
-  execute g:unite_kind_cdable_lcd_command
+  execute g:unite_kind_cdable_cd_command
         \ fnameescape(vimfiler.current_dir)
 endfunction"}}}
 function! s:grep() "{{{
