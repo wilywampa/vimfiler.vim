@@ -137,6 +137,7 @@ function! vimfiler#view#_redraw_screen(...) "{{{
   let b:vimfiler.current_files = b:vimfiler.all_files
 
   setlocal modifiable
+  setlocal noreadonly
 
   try
     let last_line = line('.')
@@ -155,6 +156,7 @@ function! vimfiler#view#_redraw_screen(...) "{{{
           \ vimfiler#view#_get_print_lines(b:vimfiler.current_files))
   finally
     setlocal nomodifiable
+    setlocal readonly
   endtry
 
   let index = index(b:vimfiler.current_files, current_file)
@@ -212,13 +214,17 @@ function! s:redraw_prompt() "{{{
     return
   endif
 
-  let mask = !b:vimfiler.is_visible_ignore_files
-        \ && b:vimfiler.current_mask == '' ?
+  let mask = (!b:vimfiler.is_visible_ignore_files
+        \      && b:vimfiler.current_mask == '') ?
         \ '' : '[' . (b:vimfiler.is_visible_ignore_files ? '.:' : '')
         \       . b:vimfiler.current_mask . ']'
 
-  let prefix = (b:vimfiler.is_safe_mode ? '[safe] ' : '') .
-        \ (b:vimfiler.source ==# 'file' ? '' : b:vimfiler.source.':')
+  let sort = (b:vimfiler.local_sort_type ==# g:vimfiler_sort_type) ?
+        \ '' : ' <' . b:vimfiler.local_sort_type . '>'
+
+  let safe = (b:vimfiler.is_safe_mode) ? ' *safe*' : ''
+
+  let prefix = (b:vimfiler.source ==# 'file') ? '' : b:vimfiler.source.':'
 
   let dir = b:vimfiler.current_dir
   if b:vimfiler.source ==# 'file'
@@ -235,39 +241,44 @@ function! s:redraw_prompt() "{{{
   if dir !~ '/$'
     let dir .= '/'
   endif
-  let b:vimfiler.status = prefix .  dir . mask
+  let b:vimfiler.status = prefix .  dir . mask . sort . safe
 
   let context = vimfiler#get_context()
 
   " Append up directory.
   let modifiable_save = &l:modifiable
+  let readonly_save = &l:readonly
   setlocal modifiable
+  setlocal noreadonly
 
-  if getline(b:vimfiler.prompt_linenr) != '..'
-    if line('$') == 1
-      " Note: Dirty Hack for open file.
-      call append(1, '')
-      call setline(2, '..')
-      silent delete _
-    else
-      call setline(1, '..')
+  try
+    if getline(b:vimfiler.prompt_linenr) != '..'
+      if line('$') == 1
+        " Note: Dirty Hack for open file.
+        call append(1, '')
+        call setline(2, '..')
+        silent delete _
+      else
+        call setline(1, '..')
+      endif
     endif
-  endif
 
-  if context.status || context.explorer
-    if getline(1) == '..'
-      call append(0, '[in]: ' . b:vimfiler.status)
-    else
-      call setline(1, '[in]: ' . b:vimfiler.status)
+    if context.status || context.explorer
+      if getline(1) == '..'
+        call append(0, '[in]: ' . b:vimfiler.status)
+      else
+        call setline(1, '[in]: ' . b:vimfiler.status)
+      endif
     endif
-  endif
 
-  if context.explorer
-    " Delete prompt
-    silent 1,2delete _
-  endif
-
-  let &l:modifiable = modifiable_save
+    if context.explorer
+      " Delete prompt
+      silent 1,2delete _
+    endif
+  finally
+    let &l:modifiable = modifiable_save
+    let &l:readonly = readonly_save
+  endtry
 endfunction"}}}
 function! vimfiler#view#_get_print_lines(files) "{{{
   " Clear previous syntax.
