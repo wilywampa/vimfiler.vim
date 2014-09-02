@@ -313,7 +313,6 @@ endfunction"}}}
 
 function! vimfiler#mappings#do_action(action, ...) "{{{
   let cursor_linenr = get(a:000, 0, line('.'))
-  let vimfiler = vimfiler#get_current_vimfiler()
   let marked_files = vimfiler#get_marked_files()
   if empty(marked_files)
     let file = vimfiler#get_file(cursor_linenr)
@@ -324,14 +323,7 @@ function! vimfiler#mappings#do_action(action, ...) "{{{
     let marked_files = [ file ]
   endif
 
-  call s:clear_mark_all_lines()
-
-  if vimfiler.context.force_quit
-    call s:exit(vimfiler)
-  endif
-
-  return vimfiler#mappings#do_files_action(
-        \ a:action, marked_files, cursor_linenr)
+  return vimfiler#mappings#do_files_action(a:action, marked_files)
 endfunction"}}}
 
 function! vimfiler#mappings#do_switch_action(action) "{{{
@@ -340,7 +332,8 @@ function! vimfiler#mappings#do_switch_action(action) "{{{
 
   let context = vimfiler#get_context()
   if context.quit && buflisted(context.alternate_buffer)
-      \ && g:vimfiler_restore_alternate_file
+        \ && getbufvar(context.alternate_buffer, '&filetype') !=# 'vimfiler'
+        \ && g:vimfiler_restore_alternate_file
     execute 'buffer' context.alternate_buffer
   endif
 
@@ -350,12 +343,18 @@ endfunction"}}}
 function! vimfiler#mappings#do_files_action(action, files, ...) "{{{
   let vimfiler = vimfiler#get_current_vimfiler()
 
+  let context = get(a:000, 0, {})
+  if !has_key(context, 'vimfiler__current_directory')
+    let context.vimfiler__current_directory = vimfiler.current_dir
+  endif
+  let context.unite__is_interactive = 1
+
+  call s:clear_mark_all_lines()
+
+  call s:check_force_quit(vimfiler, a:action)
+
   " Execute action.
-  let current_dir = vimfiler.current_dir
-  call unite#mappings#do_action(a:action, a:files, {
-        \ 'vimfiler__current_directory' : current_dir,
-        \ 'unite__is_interactive' : 1,
-        \ })
+  call unite#mappings#do_action(a:action, a:files, context)
 endfunction"}}}
 
 function! vimfiler#mappings#do_current_dir_action(action, ...) "{{{
@@ -366,8 +365,9 @@ function! vimfiler#mappings#do_current_dir_action(action, ...) "{{{
 endfunction"}}}
 
 function! vimfiler#mappings#do_dir_action(action, directory, ...) "{{{
-  let context = get(a:000, 0, {})
   let vimfiler = vimfiler#get_current_vimfiler()
+
+  let context = get(a:000, 0, {})
   let context.vimfiler__current_directory = a:directory
   let context.unite__is_interactive = 1
 
@@ -385,6 +385,8 @@ function! vimfiler#mappings#do_dir_action(action, directory, ...) "{{{
   endif
 
   call s:clear_mark_all_lines()
+
+  call s:check_force_quit(vimfiler, a:action)
 
   " Execute action.
   call unite#mappings#do_action(a:action, files, context)
@@ -727,28 +729,22 @@ function! s:execute_vimfiler_associated() "{{{
         \ 'vimfiler__winnr' : bufwinnr(bufnr),
         \ })
   let vimfiler = vimfiler#get_current_vimfiler()
-  if vimfiler.context.force_quit
-    call s:exit(vimfiler)
-  endif
+  call s:check_force_quit(vimfiler, '')
 endfunction"}}}
 function! s:execute_system_associated() "{{{
-  let marked_files = vimfiler#get_marked_files()
-  if empty(marked_files)
-    let file = vimfiler#get_file()
-    if empty(file)
+  if empty(vimfiler#get_marked_files())
+    if empty(vimfiler#get_file())
       call s:execute_external_filer()
       return
     endif
 
-    let marked_files = [file]
+    " Mark current line.
+    call s:toggle_mark_current_line()
   endif
 
-  call s:clear_mark_all_lines()
-
   " Execute marked files.
-  call unite#mappings#do_action('vimfiler__execute', marked_files, {
-        \ 'vimfiler__current_directory' : b:vimfiler.current_dir,
-        \ })
+  call vimfiler#mappings#do_dir_action(
+        \ 'vimfiler__execute', b:vimfiler.current_dir)
 endfunction"}}}
 function! s:switch_to_other_window() "{{{
   if winnr('$') != 1 || !exists('b:vimfiler')
@@ -1141,11 +1137,8 @@ function! s:toggle_visible_ignore_files() "{{{
   call vimfiler#redraw_screen()
 endfunction"}}}
 function! s:popup_shell() "{{{
-  let files = vimfiler#get_escaped_marked_files()
-  call s:clear_mark_all_lines()
-
   call vimfiler#mappings#do_current_dir_action('vimfiler__shell', {
-        \ 'vimfiler__files' : files,
+        \ 'vimfiler__files' : vimfiler#get_escaped_marked_files(),
         \})
 endfunction"}}}
 function! s:edit_binary_file() "{{{
@@ -1196,8 +1189,6 @@ function! s:execute_shell_command() "{{{
       endif
     endfor
   endif
-
-  call s:clear_mark_all_lines()
 
   call vimfiler#mappings#do_current_dir_action(
         \ 'vimfiler__shellcmd', {
@@ -1394,7 +1385,7 @@ function! s:split_edit_file() "{{{
   let context = vimfiler#get_context()
   let winwidth = (winnr('$') != 1) ?
         \ &columns - (winwidth(0)+1)/2*2 :
-        \ (context.winwidth >= 0) ?
+        \ (context.winwidth > 0) ?
         \ &columns / 2 :
         \ &columns - context.winwidth
   call vimfiler#mappings#do_action(g:vimfiler_split_action)
@@ -1406,8 +1397,7 @@ endfunction"}}}
 
 " File operations.
 function! s:copy() "{{{
-  let marked_files = vimfiler#get_marked_files()
-  if empty(marked_files)
+  if empty(vimfiler#get_marked_files())
     " Mark current line.
     call s:toggle_mark_current_line()
     return
@@ -1425,16 +1415,13 @@ function! s:copy() "{{{
   endif
 
   " Execute copy.
-  call unite#mappings#do_action('vimfiler__copy', marked_files, {
-        \ 'action__directory' : dest_dir,
-        \ 'vimfiler__current_directory' :
-        \       s:get_action_current_dir(marked_files),
-        \ })
-  call s:clear_mark_all_lines()
+  call vimfiler#mappings#do_dir_action(
+        \ 'vimfiler__copy',
+        \ s:get_action_current_dir(vimfiler#get_marked_files()),
+        \ { 'action__directory' : dest_dir })
 endfunction"}}}
 function! s:move() "{{{
-  let marked_files = vimfiler#get_marked_files()
-  if empty(marked_files)
+  if empty(vimfiler#get_marked_files())
     " Mark current line.
     call s:toggle_mark_current_line()
     return
@@ -1452,33 +1439,28 @@ function! s:move() "{{{
   endif
 
   " Execute move.
-  call unite#mappings#do_action('vimfiler__move', marked_files, {
-        \ 'action__directory' : dest_dir,
-        \ 'vimfiler__current_directory' :
-        \       s:get_action_current_dir(marked_files),
-        \ })
-  call s:clear_mark_all_lines()
+  call vimfiler#mappings#do_dir_action(
+        \ 'vimfiler__move',
+        \ s:get_action_current_dir(vimfiler#get_marked_files()),
+        \ { 'action__directory' : dest_dir })
 endfunction"}}}
 function! s:delete() "{{{
-  let marked_files = vimfiler#get_marked_files()
-  if empty(marked_files)
+  if empty(vimfiler#get_marked_files())
     " Mark current line.
     call s:toggle_mark_current_line()
     return
   endif
 
   " Execute delete.
-  call unite#mappings#do_action('vimfiler__delete', marked_files, {
-        \ 'vimfiler__current_directory' :
-        \       s:get_action_current_dir(marked_files),
-        \ })
-  call s:clear_mark_all_lines()
+  call vimfiler#mappings#do_dir_action(
+        \ 'vimfiler__delete',
+        \ s:get_action_current_dir(vimfiler#get_marked_files()))
 endfunction"}}}
 function! s:rename() "{{{
-  let marked_files = vimfiler#get_marked_filenames()
-  if !empty(marked_files)
+  if !empty(vimfiler#get_marked_filenames())
     " Extended rename.
     call vimfiler#exrename#create_buffer(vimfiler#get_marked_files())
+    call s:clear_mark_all_lines()
     return
   endif
 
@@ -1487,7 +1469,8 @@ function! s:rename() "{{{
     return
   endif
 
-  call unite#mappings#do_action('vimfiler__rename', [file], {
+  call vimfiler#mappings#do_files_action(
+        \ 'vimfiler__rename', [file], {
         \ 'vimfiler__current_directory' :
         \       s:get_action_current_dir([file]),
         \ })
@@ -1513,8 +1496,7 @@ function! s:new_file() "{{{
   call vimfiler#mappings#do_dir_action('vimfiler__newfile', directory)
 endfunction"}}}
 function! s:clipboard_copy() "{{{
-  let marked_files = vimfiler#get_marked_files()
-  if empty(marked_files)
+  if empty(vimfiler#get_marked_files())
     " Mark current line.
     call s:toggle_mark_current_line()
     return
@@ -1522,14 +1504,13 @@ function! s:clipboard_copy() "{{{
 
   let clipboard = vimfiler#variables#get_clipboard()
   let clipboard.operation = 'copy'
-  let clipboard.files = marked_files
+  let clipboard.files = vimfiler#get_marked_files()
   call s:clear_mark_all_lines()
 
   echo 'Copied files to vimfiler clipboard.'
 endfunction"}}}
 function! s:clipboard_move() "{{{
-  let marked_files = vimfiler#get_marked_files()
-  if empty(marked_files)
+  if empty(vimfiler#get_marked_files())
     " Mark current line.
     call s:toggle_mark_current_line()
     return
@@ -1537,7 +1518,7 @@ function! s:clipboard_move() "{{{
 
   let clipboard = vimfiler#variables#get_clipboard()
   let clipboard.operation = 'move'
-  let clipboard.files = marked_files
+  let clipboard.files = vimfiler#get_marked_files()
   call s:clear_mark_all_lines()
 
   echo 'Moved files to vimfiler clipboard.'
@@ -1553,7 +1534,7 @@ function! s:clipboard_paste() "{{{
   let dest_dir = vimfiler#get_file_directory()
 
   " Execute file operation.
-  call unite#mappings#do_action(
+  call vimfiler#mappings#do_files_action(
         \ 'vimfiler__' . clipboard.operation,
         \ clipboard.files, {
         \ 'action__directory' : dest_dir,
@@ -1817,6 +1798,16 @@ function! s:get_abbr_length(parent, child) "{{{
         \ repeat(' ', a:parent.vimfiler__nest_level
         \  * g:vimfiler_tree_indentation) .
         \ a:parent.vimfiler__abbr.a:child.vimfiler__abbr) + 5
+endfunction"}}}
+
+function! s:check_force_quit(vimfiler, action) "{{{
+  if a:vimfiler.context.force_quit
+        \ && index([
+        \  'vimfiler__move', 'vimfiler__copy', 'vimfiler__delete',
+        \  'vimfiler__rename', 'vimfiler__mkdir',
+        \ ], a:action) < 0
+    call s:exit(a:vimfiler)
+  endif
 endfunction"}}}
 
 " vim: foldmethod=marker
