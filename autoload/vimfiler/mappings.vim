@@ -83,7 +83,8 @@ function! vimfiler#mappings#define_default_mappings(context) "{{{
   nnoremap <buffer><silent> <Plug>(vimfiler_popup_shell)
         \ :<C-u>call <SID>popup_shell()<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_edit_file)
-        \ :<C-u>call vimfiler#mappings#do_switch_action(g:vimfiler_edit_action)<CR>
+        \ :<C-u>call vimfiler#mappings#do_switch_action(
+        \   b:vimfiler.context.edit_action)<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_split_edit_file)
         \ :<C-u>call <SID>split_edit_file()<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_edit_binary_file)
@@ -93,7 +94,7 @@ function! vimfiler#mappings#define_default_mappings(context) "{{{
   nnoremap <buffer><silent> <Plug>(vimfiler_execute_shell_command)
         \ :<C-u>call <SID>execute_shell_command()<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_hide)
-        \ :<C-u>call <SID>hide()<CR>
+        \ :<C-u>call vimfiler#util#hide_buffer()<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_exit)
         \ :<C-u>call <SID>exit(b:vimfiler)<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_close)
@@ -101,7 +102,8 @@ function! vimfiler#mappings#define_default_mappings(context) "{{{
   nnoremap <buffer><silent> <Plug>(vimfiler_help)
         \ :<C-u>call <SID>help()<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_preview_file)
-        \ :<C-u>call vimfiler#mappings#do_action(g:vimfiler_preview_action)<CR>
+        \ :<C-u>call vimfiler#mappings#do_action(
+        \  b:vimfiler.context.preview_action)<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_sync_with_current_vimfiler)
         \ :<C-u>call <SID>sync_with_current_vimfiler()<CR>
   nnoremap <buffer><silent> <Plug>(vimfiler_sync_with_another_vimfiler)
@@ -564,7 +566,14 @@ function! s:switch() "{{{
     if exists('g:loaded_choosewin')
           \ || hasmapto('<Plug>(choosewin)', 'n')
       " Use vim-choosewin.
-      let choice = choosewin#start(windows, {'noop' : 1})
+      let pos = getpos('.')
+      try
+        let choice = choosewin#start(windows, {'noop' : 1})
+      finally
+        " Note: choosewin with overlay move cursor.
+        call setpos('.', pos)
+      endtry
+
       if !empty(choice)
         let [tabnr, winnr] = choice
       endif
@@ -1182,24 +1191,6 @@ function! s:execute_shell_command() "{{{
         \ 'vimfiler__command' : command,
         \})
 endfunction"}}}
-function! s:hide() "{{{
-  let bufnr = bufnr('%')
-
-  let context = vimfiler#get_context()
-
-  if vimfiler#winnr_another_vimfiler() > 0
-    " Hide another vimfiler.
-    let bufnr = b:vimfiler.another_vimfiler_bufnr
-    close
-    execute bufwinnr(bufnr).'wincmd w'
-    call s:hide()
-  elseif winnr('$') != 1 &&
-        \ (context.split || context.toggle)
-    close
-  else
-    call vimfiler#util#alternate_buffer()
-  endif
-endfunction"}}}
 function! s:exit(vimfiler) "{{{
   let another_bufnr = a:vimfiler.another_vimfiler_bufnr
   call vimfiler#util#delete_buffer(a:vimfiler.bufnr)
@@ -1346,7 +1337,8 @@ function! s:open_file_in_another_vimfiler() "{{{
   call s:switch_to_other_window()
 
   if len(files) > 1 || !files[0].vimfiler__is_directory
-    call vimfiler#mappings#do_files_action(g:vimfiler_edit_action, files)
+    call vimfiler#mappings#do_files_action(
+          \ vimfiler#get_context().edit_action, files)
   else
     call vimfiler#mappings#cd(files[0].action__path)
   endif
@@ -1375,7 +1367,7 @@ function! s:split_edit_file() "{{{
         \ (context.winwidth > 0) ?
         \ &columns / 2 :
         \ &columns - context.winwidth
-  call vimfiler#mappings#do_action(g:vimfiler_split_action)
+  call vimfiler#mappings#do_action(context.split_action)
 
   " Resize.
   execute 'vertical resize'
@@ -1533,6 +1525,7 @@ function! s:clipboard_paste() "{{{
 endfunction"}}}
 
 function! s:set_current_mask() "{{{
+  call vimfiler#redraw_screen()
   call unite#start(['vimfiler/mask'],
         \ { 'start_insert' : 1, 'buffer_name' : 'vimfiler/mask', 'script' : 1 })
 endfunction"}}}
