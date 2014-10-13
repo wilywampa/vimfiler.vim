@@ -252,7 +252,8 @@ function! s:redraw_prompt() "{{{
   setlocal noreadonly
 
   try
-    if context.parent && getline(b:vimfiler.prompt_linenr) != '..'
+    if (context.parent || empty(b:vimfiler.current_files))
+          \ && getline(b:vimfiler.prompt_linenr) != '..'
       if line('$') == 1
         " Note: Dirty Hack for open file.
         call append(1, '')
@@ -402,7 +403,7 @@ function! vimfiler#view#_get_max_len(files) "{{{
     silent execute 'sign unplace buffer='.bufnr('%')
   endif
 
-  return max([max([winwidth(0), &winwidth]) - padding, 10])
+  return max([winwidth(0) - padding, 10])
 endfunction"}}}
 function! vimfiler#view#_define_syntax() "{{{
   for column in filter(

@@ -92,7 +92,7 @@ endfunction"}}}
 function! vimfiler#helper#_get_cd_path(dir) "{{{
   let dir = vimfiler#util#substitute_path_separator(a:dir)
   if b:vimfiler.source !=# 'file' &&
-        \ dir !~ ':' && dir =~ '^/\|^\a:'
+        \ dir !~ ':\|^//' && dir =~ '^/\|^\a:'
     " Use file source.
     let dir = 'file:' . dir
   endif
@@ -119,8 +119,8 @@ function! vimfiler#helper#_get_cd_path(dir) "{{{
       let dir = fnamemodify(substitute(current_dir, '[/\\]$', '', ''), ':h')
     endif
 
-    if dir =~ '//$'
-      return current_dir
+    if dir == '//'
+      return current_dir . '/home'
     endif
 
   elseif dir == '/'
