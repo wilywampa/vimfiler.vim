@@ -208,8 +208,15 @@ function! vimfiler#util#alternate_buffer() "{{{
     return
   endif
 
-  execute 'buffer' ((current < len(listed_buffer) / 2) ?
-        \ listed_buffer[current+1] : listed_buffer[current-1])
+  try
+    call UniteAlternateBuffer(1)
+    if current == bufnr('%')
+      throw ''
+    endif
+  catch
+    execute 'buffer' ((current < len(listed_buffer) / 2) ?
+          \ listed_buffer[current+1] : listed_buffer[current-1])
+  endtry
 
   silent call vimfiler#force_redraw_all_vimfiler()
 endfunction"}}}
