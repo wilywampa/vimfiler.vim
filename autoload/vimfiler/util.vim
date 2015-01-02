@@ -70,9 +70,6 @@ endfunction
 function! vimfiler#util#strwidthpart_reverse(...)
   return call(s:get_prelude().strwidthpart_reverse, a:000)
 endfunction
-function! vimfiler#util#wcswidth(...)
-  return call(s:get_prelude().wcswidth, a:000)
-endfunction
 function! vimfiler#util#is_windows(...)
   return s:is_windows
 endfunction
@@ -238,7 +235,7 @@ function! vimfiler#util#convert2list(expr) "{{{
 endfunction"}}}
 function! vimfiler#util#get_vimfiler_winnr(buffer_name) "{{{
   for winnr in filter(range(1, winnr('$')),
-        \ "getbufvar(winbufnr(v:val), '&filetype') ==# 'vimfiler'")
+        \ "getbufvar(winbufnr(v:val), '&filetype') =~# 'vimfiler'")
     let buffer_context = getbufvar(
           \ winbufnr(winnr), 'vimfiler').context
     if buffer_context.buffer_name ==# a:buffer_name
