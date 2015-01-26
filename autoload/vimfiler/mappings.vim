@@ -1233,7 +1233,7 @@ function! s:execute_shell_command() "{{{
   let command = input('Input shell command: ', '', 'shellcmd')
   redraw
   if command == ''
-    echo 'Canceled.'
+    echo 'Cancelled.'
     return
   endif
 
@@ -1707,7 +1707,7 @@ function! s:cd_input_directory() "{{{
         \ 'customlist,vimfiler#complete_path')
 
   if dir == ''
-    echo 'Canceled.'
+    echo 'Cancelled.'
     return
   endif
 
