@@ -1442,6 +1442,7 @@ function! s:split_edit_file() "{{{
   " Resize.
   execute 'vertical resize'
         \ (winnr('$') == 1 ? winwidth : winwidth/(winnr('$') - 1))
+  setlocal nowinfixwidth
 endfunction"}}}
 
 " File operations.
