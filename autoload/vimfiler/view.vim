@@ -121,11 +121,8 @@ function! vimfiler#view#_redraw_screen(...) "{{{
         \ copy(b:vimfiler.original_files),
         \ { 'input' : b:vimfiler.current_mask })
   if !b:vimfiler.is_visible_ignore_files
-    if g:vimfiler_ignore_pattern != ''
-      call filter(b:vimfiler.all_files,
-            \  "v:val.vimfiler__filename !~? g:vimfiler_ignore_pattern")
-    endif
-
+    let b:vimfiler.all_files = vimfiler#helper#_call_filters(
+          \ b:vimfiler.all_files, vimfiler#get_context())
     let b:vimfiler.all_files =
           \ s:check_tree(b:vimfiler.all_files)
   endif
@@ -166,9 +163,6 @@ function! vimfiler#view#_redraw_screen(...) "{{{
   let index = index(b:vimfiler.current_files, current_file)
   if index >= 0
     call cursor(vimfiler#get_line_number(index), 0)
-  elseif line('.') == 1 && last_line == 1
-    " Initialize cursor position.
-    call cursor(b:vimfiler.prompt_linenr+1, 0)
   else
     call cursor(last_line, 0)
   endif

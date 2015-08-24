@@ -967,8 +967,8 @@ function! s:expand_tree(is_recursive) "{{{
   endif
 
   if !a:is_recursive && !b:vimfiler.is_visible_ignore_files
-    call filter(files, 'v:val.vimfiler__filename !~ '''
-          \   . g:vimfiler_ignore_pattern . '''')
+    let files = vimfiler#helper#_call_filters(
+          \ files, vimfiler#get_context())
   endif
 
   let index = vimfiler#get_file_index(line('.'))
@@ -1219,7 +1219,7 @@ function! s:edit_binary_file() "{{{
 
   if !exists(':Vinarise')
     call vimfiler#util#print_error(
-          \ '[vimfiler] vinarise is not found. Please install it.')
+          \ 'vinarise is not found. Please install it.')
     return
   endif
 
@@ -1585,7 +1585,7 @@ endfunction"}}}
 function! s:clipboard_paste() "{{{
   let clipboard = vimfiler#variables#get_clipboard()
   if empty(clipboard.files)
-    call vimfiler#util#print_error('[vimfiler] Clipboard is empty.')
+    call vimfiler#util#print_error('Clipboard is empty.')
     return
   endif
 
@@ -1656,7 +1656,7 @@ function! vimfiler#mappings#_change_vim_current_dir() "{{{
   let vimfiler = vimfiler#get_current_vimfiler()
   if vimfiler.source !=# 'file'
     call vimfiler#util#print_error(
-          \ '[vimfiler] Invalid operation in not file source.')
+          \ 'Invalid operation in not file source.')
     return
   endif
 
@@ -1669,7 +1669,7 @@ endfunction"}}}
 function! s:grep() "{{{
   if !vimfiler#util#has_vimproc()
     call vimfiler#util#print_error(
-          \ '[vimfiler] Sorry, vimproc is not installed. '.
+          \ 'Sorry, vimproc is not installed. '.
           \ 'This mapping use vimproc.')
     return
   endif
@@ -1687,7 +1687,7 @@ endfunction"}}}
 function! s:find() "{{{
   if !vimfiler#util#has_vimproc()
     call vimfiler#util#print_error(
-          \ '[vimfiler] Sorry, vimproc is not installed. '.
+          \ 'Sorry, vimproc is not installed. '.
           \ 'This mapping use vimproc.')
     return
   endif
@@ -1740,7 +1740,7 @@ endfunction"}}}
 function! s:quick_look() "{{{
   if !vimfiler#util#has_vimproc()
     call vimfiler#util#print_error(
-          \ '[vimfiler] vimproc is needed for this feature.')
+          \ 'vimproc is needed for this feature.')
     return
   endif
 
@@ -1757,7 +1757,7 @@ function! s:quick_look() "{{{
     call vimproc#system_gui(command)
   catch /vimproc#get_command_name: /
     call vimfiler#util#print_error(
-          \ '[vimfiler] g:vimfiler_quick_look_command "'.
+          \ 'g:vimfiler_quick_look_command "'.
           \ g:vimfiler_quick_look_command.'" is not executable.')
     return
   endtry
@@ -1817,7 +1817,7 @@ function! s:unmapping_file_operations() "{{{
 endfunction"}}}
 function! s:disable_operation() "{{{
   call vimfiler#util#print_error(
-        \ '[vimfiler] In safe mode, this operation is disabled.')
+        \ 'In safe mode, this operation is disabled.')
 endfunction"}}}
 
 function! s:toggle_simple_mode() "{{{
@@ -1867,12 +1867,16 @@ function! s:get_abbr_length(parent, child) "{{{
 endfunction"}}}
 
 function! s:check_force_quit(vimfiler, action) "{{{
-  if a:vimfiler.context.force_quit
+  if (a:vimfiler.context.force_quit || a:vimfiler.context.force_hide)
         \ && index([
         \  'vimfiler__move', 'vimfiler__copy', 'vimfiler__delete',
         \  'vimfiler__rename', 'vimfiler__mkdir',
         \ ], a:action) < 0
-    call s:close()
+    if a:vimfiler.context.force_quit
+      call s:exit(a:vimfiler)
+    else
+      call s:close()
+    endif
   endif
 endfunction"}}}
 
