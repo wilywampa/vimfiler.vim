@@ -29,7 +29,7 @@ set cpo&vim
 let g:vimfiler_min_cache_files =
       \ get(g:, 'vimfiler_min_cache_files', 100)
 
-let s:Cache = vimfiler#util#get_vital().import('System.Cache')
+let s:Cache = vimfiler#util#get_vital().import('System.Cache.Deprecated')
 
 function! vimfiler#view#_force_redraw_screen(...) "{{{
   let is_manualed = get(a:000, 0, 0)
@@ -366,7 +366,11 @@ function! vimfiler#view#_get_max_len(files) "{{{
     silent execute 'sign unplace buffer='.bufnr('%')
   endif
 
-  return max([winwidth(0) - padding, 10])
+  let max_len = max([winwidth(0) - padding, 10])
+  if b:vimfiler.context.fnamewidth > 0
+    let max_len = min([max_len, b:vimfiler.context.fnamewidth])
+  endif
+  return max_len
 endfunction"}}}
 function! vimfiler#view#_define_syntax() "{{{
   for column in filter(
