@@ -91,17 +91,14 @@ function! vimfiler#helper#_parse_path(path) abort "{{{
 endfunction"}}}
 function! vimfiler#helper#_get_cd_path(dir) abort "{{{
   let dir = vimfiler#util#substitute_path_separator(a:dir)
-  if b:vimfiler.source !=# 'file' &&
-        \ dir !~ ':\|^//' && dir =~ '^/\|^\a:'
-    " Use file source.
-    let dir = 'file:' . dir
-  endif
 
   if dir =~ '^\h\w*:'
     " Parse path.
     let ret = vimfiler#parse_path(dir)
     let b:vimfiler.source = ret[0]
     let dir = join(ret[1:], ':')
+  elseif a:dir !=# b:vimfiler.current_dir
+    let b:vimfiler.source = 'file'
   endif
 
   let current_dir = b:vimfiler.current_dir
