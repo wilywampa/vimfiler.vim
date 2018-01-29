@@ -190,13 +190,13 @@ function! vimfiler#util#alternate_buffer(context) abort
     return
   endif
 
+  let current = index(listed_buffer, bufnr('%'))
   try
     call UniteAlternateBuffer(1)
     if current == bufnr('%')
       throw ''
     endif
   catch
-    let current = index(listed_buffer, bufnr('%'))
     if current < 0
       execute 'buffer' listed_buffer[0]
     else
