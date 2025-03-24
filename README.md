@@ -4,8 +4,8 @@ A powerful file explorer implemented in Vim script
 **Note**: Active development on vimfiler.vim has stopped. The only future
 changes will be bug fixes.
 
-Please see [Defx.nvim](https://github.com/Shougo/defx.nvim).
-https://github.com/Shougo/vimfiler.vim/issues/380
+Please see [ddu.vim](https://github.com/Shougo/ddu.vim) and
+[ddu-ui-filer](https://github.com/Shougo/ddu-ui-filer).
 
 ## Introduction
 vimfiler is a powerful file explorer ("filer") written in Vim script.
@@ -23,9 +23,6 @@ explorer (instead of netrw.)
 **vimfiler depends on [unite.vim](https://github.com/Shougo/unite.vim).**
 
 Please install unite.vim 3.0 or later before you install vimfiler.
-
-Note: To use vimfiler with files larger than 2 GB,
-      vimfiler requires Vim to have Lua support (|if_lua|).
 
 ## Screenshots
 
@@ -49,6 +46,5 @@ Dark theme
 - External sources (for example, [unite-ssh](https://github.com/Shougo/unite-ssh))
 - vimfiler is highly customizable.
 - Many options (see |vimfiler-options|)
-- Fast (if your version of Vim has |if_lua| enabled)
 - Column customization
 - Support for more than one screen
